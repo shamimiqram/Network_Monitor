@@ -1,4 +1,3 @@
-# Compiler and flags
 CC = gcc
 CFLAGS = -Wall -g
 LIBUV_FLAGS = -luv -static
@@ -20,4 +19,3 @@ clean:
 	rm -f $(SERVER_BIN)
 
 .PHONY: clean
-
