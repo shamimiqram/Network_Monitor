@@ -8,8 +8,8 @@ INCLUDE_DIR = /usr/local/include
 LIB_DIR = /usr/local/lib
 
 # Server source and output
-SERVER_SRC = server.c
-SERVER_BIN = server
+SERVER_SRC = server_monitor.c
+SERVER_BIN = server_monitor
 
 # Build the server
 $(SERVER_BIN): $(SERVER_SRC)
