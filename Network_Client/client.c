@@ -31,12 +31,22 @@ int main() {
     }
 
     // Message to send to the server
+
+    const char *json_data = "{\"response\": ["
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.1.1\", \"value\": \"Ethernet0\", \"type\": \"STRING\", \"description\": \"ifIndex\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.2.1\", \"value\": \"Ethernet Interface\", \"type\": \"STRING\", \"description\": \"ifDescr\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.7.1\", \"value\": \"2\", \"type\": \"INTEGER\", \"description\": \"ifAdminStatus\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.8.1\", \"value\": \"1\", \"type\": \"INTEGER\", \"description\": \"ifOperStatus\"}"
+        "]}";
+
+
     const char *message = "Hello from UDP Client!";
     for(int j = 0; j < 10; j++)
     {
         sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
            (const struct sockaddr *)&server_addr, sizeof(server_addr));
      printf("Message sent to server: %s\n", message); 
+     message = json_data;
     }
     
 
