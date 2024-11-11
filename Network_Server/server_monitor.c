@@ -24,11 +24,11 @@ typedef struct {
 typedef struct {
     SNMPVariable variables[99];  // Array of SNMP variables
     int count;                    // Count of the SNMP variables
-} SNMPWalkResponse;
+} SNMPResponse;
 
 
 // Function to parse the JSON response and populate SNMPWalkResponse structure
-int parse_snmp_walk_json(const char *json_data, SNMPWalkResponse *response) {
+int parse_snmp_result_json(const char *json_data, SNMPResponse *response) {
     cJSON *root = cJSON_Parse(json_data); // Parse the JSON
     if (root == NULL) {
         fprintf(stderr, "Error parsing JSON: %s\n", cJSON_GetErrorPtr());
@@ -162,6 +162,18 @@ const char *json_data = "{\"response\": ["
         "{\"oid\": \"1.3.6.1.2.1.2.2.1.7.1\", \"value\": \"2\", \"type\": \"INTEGER\", \"description\": \"ifAdminStatus\"},"
         "{\"oid\": \"1.3.6.1.2.1.2.2.1.8.1\", \"value\": \"1\", \"type\": \"INTEGER\", \"description\": \"ifOperStatus\"}"
         "]}";
+
+        SNMPResponse* snmp_info;
+        snmp_info = (SNMPResponse *)malloc(sizeof(SNMPResponse));
+        
+        int info_cnt = parse_snmp_result_json(json_data, snmp_info);
+
+        printf("OID result Count : %d\n", info_cnt);
+
+        for(int i = 0; i < info_cnt; i++)
+        {
+            printf("OID : %s , TYPE: %s , VALUE : %s , DES : %s\n", snmp_info->variables[i].oid, snmp_info->variables[i].type, snmp_info->variables[i].value, snmp_info->variables[i].description);
+        }
 
     int sockfd;
     struct sockaddr_in server_addr, client_addr;
