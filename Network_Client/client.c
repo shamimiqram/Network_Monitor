@@ -31,9 +31,13 @@ int main() {
 
     // Message to send to the server
     const char *message = "Hello from UDP Client!";
-    sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
+    for(int j = 0; j < 10; j++)
+    {
+        sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
            (const struct sockaddr *)&server_addr, sizeof(server_addr));
-    printf("Message sent to server: %s\n", message);
+     printf("Message sent to server: %s\n", message); 
+    }
+    
 
     // Receive the server's response
     int n = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL,

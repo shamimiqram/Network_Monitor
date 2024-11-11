@@ -11,6 +11,35 @@
 // Global flag to control the server loop
 volatile int running = 1;
 
+// Structure to pass to threads with client info and message
+typedef struct {
+    int sockfd;
+    struct sockaddr_in client_addr;
+    char message[BUFFER_SIZE];
+} client_data_t;
+
+// Function to process each received message in a separate thread
+void *process_message(void *arg) {
+    client_data_t *data = (client_data_t *)arg;
+    char *response = "Message received!";
+
+    // Print received message and client info
+    printf("Received message: '%s'\n", data->message);
+    printf("Client IP address: %s\n", inet_ntoa(data->client_addr.sin_addr));
+    printf("Client port: %d\n", ntohs(data->client_addr.sin_port));
+
+    sleep(5);
+
+    // Send a response back to the client
+    sendto(data->sockfd, response, strlen(response), MSG_CONFIRM,
+           (struct sockaddr *)&data->client_addr, sizeof(data->client_addr));
+    printf("Response sent to client\n");
+
+    // Free memory allocated for the thread
+    free(data);
+    return NULL;
+}
+
 // Function to handle user input in a separate thread
 void *input_thread(void *arg) {
     int input;
@@ -61,22 +90,33 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Main loop to receive and respond to messages
+    // Main loop to receive and spawn threads for processing messages
     while (running) {
         int n = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL,
                           (struct sockaddr *)&client_addr, &client_len);
         buffer[n] = '\0'; // Null-terminate the received message
 
-        // Print client's IP address and message
-        printf("Received message: '%s'\n", buffer);
-        printf("Client IP address: %s\n", inet_ntoa(client_addr.sin_addr));
-        printf("Client port: %d\n", ntohs(client_addr.sin_port));
+        // Allocate memory for the client data structure to pass to the thread
+        client_data_t *data = (client_data_t *)malloc(sizeof(client_data_t));
+        if (data == NULL) {
+            perror("Memory allocation failed");
+            continue;
+        }
 
-        // Send a response back to the client
-        const char *response = "Message received!";
-        sendto(sockfd, (const char *)response, strlen(response), MSG_CONFIRM,
-               (const struct sockaddr *)&client_addr, client_len);
-        printf("Response sent to client\n");
+        // Fill the client data structure
+        data->sockfd = sockfd;
+        data->client_addr = client_addr;
+        strncpy(data->message, buffer, n);
+
+        // Create a new thread to process the received message
+        pthread_t thread_id;
+        if (pthread_create(&thread_id, NULL, process_message, (void *)data) != 0) {
+            perror("Failed to create thread for message processing");
+            free(data); // Clean up in case thread creation fails
+        }
+
+        // Detach the thread to avoid memory leak (the thread cleans up itself)
+        pthread_detach(thread_id);
     }
 
     // Clean up: close socket and wait for the input thread to join
