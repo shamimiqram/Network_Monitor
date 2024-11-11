@@ -1,90 +1,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <uv.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define PORT 7000
-#define BACKLOG 128
-
-// A linked list to hold all connected clients
-typedef struct client {
-    uv_tcp_t handle;
-    struct client *next;
-} client_t;
-
-client_t *clients = NULL;  // List of connected clients
-
-// Broadcast message to all connected clients
-void broadcast_message(const char *message, size_t length) {
-    client_t *client = clients;
-    while (client) {
-        uv_buf_t buf = uv_buf_init(strdup(message), length);
-        uv_write_t *req = (uv_write_t*)malloc(sizeof(uv_write_t));
-        uv_write(req, (uv_stream_t*)&client->handle, &buf, 1, NULL);
-        client = client->next;
-    }
-}
-
-// Read callback for receiving messages from clients
-void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
-    if (nread < 0) {
-        if (nread == UV_EOF) {
-            printf("Client disconnected.\n");
-        } else {
-            fprintf(stderr, "Read error: %s\n", uv_strerror(nread));
-        }
-
-        uv_close((uv_handle_t*)stream, NULL);
-        free(buf->base);
-        return;
-    }
-
-    // Broadcast the message to all connected clients
-    broadcast_message(buf->base, nread);
-    free(buf->base);
-}
-
-// Allocate buffer for reading
-void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    buf->base = (char*)malloc(suggested_size);
-    buf->len = suggested_size;
-}
-
-// Accept a new client connection
-void on_new_connection(uv_stream_t *server, int status) {
-    if (status < 0) {
-        fprintf(stderr, "New connection error: %s\n", uv_strerror(status));
-        return;
-    }
-
-    client_t *new_client = (client_t*)malloc(sizeof(client_t));
-    new_client->next = clients;
-    clients = new_client;
-
-    uv_tcp_init(uv_default_loop(), &new_client->handle);
-    if (uv_accept(server, (uv_stream_t*)&new_client->handle) == 0) {
-        uv_read_start((uv_stream_t*)&new_client->handle, alloc_buffer, on_read);
-        printf("New client connected.\n");
-    } else {
-        uv_close((uv_handle_t*)&new_client->handle, NULL);
-        free(new_client);
-    }
-}
+#define PORT 8080
+#define BUFFER_SIZE 1024
 
 int main() {
-    uv_loop_t *loop = uv_default_loop();
+    int sockfd;
+    struct sockaddr_in server_addr, client_addr;
+    char buffer[BUFFER_SIZE];
+    socklen_t client_len = sizeof(client_addr);
 
-    uv_tcp_t server;
-    uv_tcp_init(loop, &server);
+    // Create UDP socket
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
 
-    struct sockaddr_in addr;
-    uv_ip4_addr("0.0.0.0", PORT, &addr);
+    memset(&server_addr, 0, sizeof(server_addr));
 
-    uv_bind((uv_stream_t*)&server, (const struct sockaddr*)&addr, 0);
-    uv_listen((uv_stream_t*)&server, BACKLOG, on_new_connection);
+    // Configure server address
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;  // Listen on all interfaces
+    server_addr.sin_port = htons(PORT);
 
-    printf("Server listening on port %d...\n", PORT);
+    // Bind the socket to the specified address and port
+    if (bind(sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Bind failed");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
 
-    return uv_run(loop, UV_RUN_DEFAULT);
+    printf("UDP server is listening on port %d...\n", PORT);
+
+    // Main loop to receive and respond to messages
+    while (1) {
+        int n = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL,
+                          (struct sockaddr *)&client_addr, &client_len);
+        buffer[n] = '\0'; // Null-terminate the received message
+
+        // Print client's IP address and message
+        printf("Received message: '%s'\n", buffer);
+        printf("Client IP address: %s\n", inet_ntoa(client_addr.sin_addr));
+        printf("Client port: %d\n", ntohs(client_addr.sin_port));
+
+        // Send a response back to the client
+        const char *response = "Message received!";
+        sendto(sockfd, (const char *)response, strlen(response), MSG_CONFIRM,
+               (const struct sockaddr *)&client_addr, client_len);
+        printf("Response sent to client\n");
+    }
+
+    close(sockfd); // Close the socket
+    return 0;
 }
-

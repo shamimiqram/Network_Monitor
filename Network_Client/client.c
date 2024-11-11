@@ -1,93 +1,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <uv.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 7000
-
-// Read callback for receiving messages
-void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
-    if (nread < 0) {
-        if (nread == UV_EOF) {
-            printf("Server disconnected.\n");
-        } else {
-            fprintf(stderr, "Read error: %s\n", uv_strerror(nread));
-        }
-
-        uv_close((uv_handle_t*)stream, NULL);
-        free(buf->base);
-        return;
-    }
-
-    printf("Received message: %s\n", buf->base);
-    free(buf->base);
-}
-
-// Allocate buffer for reading
-void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    buf->base = (char*)malloc(suggested_size);
-    buf->len = suggested_size;
-}
-
-// Write callback for sending messages to server
-void on_write(uv_write_t *req, int status) {
-    if (status < 0) {
-        fprintf(stderr, "Write error: %s\n", uv_strerror(status));
-    }
-    free(req);
-}
-
-// Send a message to the server
-void send_message(uv_tcp_t *client, const char *message) {
-    uv_buf_t buf = uv_buf_init((char*)message, strlen(message));
-    uv_write_t *req = (uv_write_t*)malloc(sizeof(uv_write_t));
-    uv_write(req, (uv_stream_t*)client, &buf, 1, on_write);
-}
-
-// Connect to the server
-void on_connect(uv_connect_t *connect_req, int status) {
-    if (status < 0) {
-        fprintf(stderr, "Connection error: %s\n", uv_strerror(status));
-        return;
-    }
-
-    uv_tcp_t *client = (uv_tcp_t*)connect_req->handle;
-    printf("Connected to server. Type your messages:\n");
-
-    // Start reading from server
-    uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
-
-    // Start a loop to send messages
-    char buffer[256];
-    while (1) {
-        printf("> ");
-        fgets(buffer, sizeof(buffer), stdin);
-        buffer[strcspn(buffer, "\n")] = 0;  // Remove newline
-
-        if (strcmp(buffer, "exit") == 0) {
-            break;
-        }
-
-        send_message(client, buffer);
-    }
-
-    uv_stop(uv_default_loop());
-}
+#define SERVER_IP "127.0.0.1"  // Server IP address
+#define SERVER_PORT 8080       // Server port
+#define BUFFER_SIZE 1024       // Buffer size for messages
 
 int main() {
-    uv_loop_t *loop = uv_default_loop();
-    uv_tcp_t client;
-    uv_tcp_init(loop, &client);
+    int sockfd;
+    struct sockaddr_in server_addr;
+    char buffer[BUFFER_SIZE];
 
-    struct sockaddr_in dest;
-    uv_ip4_addr(SERVER_IP, SERVER_PORT, &dest);
+    // Create a UDP socket
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
 
-    uv_connect_t connect_req;
-    uv_tcp_connect(&connect_req, &client, (const struct sockaddr*)&dest, on_connect);
+    memset(&server_addr, 0, sizeof(server_addr));
 
-    printf("Connecting to server...\n");
+    // Configure server address
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(SERVER_PORT);
+    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+        perror("Invalid server address");
+        exit(EXIT_FAILURE);
+    }
 
-    return uv_run(loop, UV_RUN_DEFAULT);
+    // Message to send to the server
+    const char *message = "Hello from UDP Client!";
+    sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
+           (const struct sockaddr *)&server_addr, sizeof(server_addr));
+    printf("Message sent to server: %s\n", message);
+
+    // Receive the server's response
+    int n = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL,
+                      (struct sockaddr *)&server_addr, (socklen_t *)sizeof(server_addr));
+    buffer[n] = '\0';  // Null-terminate the received string
+
+    printf("Server response: %s\n", buffer);
+
+    // Close the socket
+    close(sockfd);
+    return 0;
 }
-

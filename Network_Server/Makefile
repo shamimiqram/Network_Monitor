@@ -1,21 +1,34 @@
+# Makefile for compiling the UDP server (server_monitor.c)
+
+# Compiler and flags
 CC = gcc
 CFLAGS = -Wall -g
-LIBUV_FLAGS = -luv -static
 
-# Paths to include and library directories
-INCLUDE_DIR = /usr/local/include
-LIB_DIR = /usr/local/lib
+# Target executable name
+TARGET = server_monitor
 
-# Server source and output
-SERVER_SRC = server_monitor.c
-SERVER_BIN = server_monitor
+# Source files
+SRC = server_monitor.c
 
-# Build the server
-$(SERVER_BIN): $(SERVER_SRC)
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) $(SERVER_SRC) -L$(LIB_DIR) $(LIBUV_FLAGS) -o $(SERVER_BIN)
+# Object files
+OBJ = $(SRC:.c=.o)
 
-# Clean the build
+# Default target to build the program
+all: $(TARGET)
+
+# Rule to build the target from object files
+$(TARGET): $(OBJ)
+	$(CC) $(OBJ) -o $(TARGET)
+
+# Rule to compile .c files to .o files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean up object files and the target
 clean:
-	rm -f $(SERVER_BIN)
+	rm -f $(OBJ) $(TARGET)
 
-.PHONY: clean
+# Run the server (optional, can be run after `make` to test)
+run: $(TARGET)
+	./$(TARGET)
+
