@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <ifaddrs.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -54,7 +57,43 @@ void *input_thread(void *arg) {
     return NULL;
 }
 
+void get_local_ip() {
+    struct ifaddrs *ifap, *ifa;
+    struct sockaddr_in *sa;
+    char ip[INET_ADDRSTRLEN];
+
+    printf("Printing ip address\n");
+    if (getifaddrs(&ifap) == -1) {
+        perror("getifaddrs");
+        return;
+    }
+
+    // Loop through linked list of interfaces
+    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr->sa_family == AF_INET) {  // Check for IPv4
+            sa = (struct sockaddr_in *) ifa->ifa_addr;
+            // Skip the loopback address (127.0.0.1)
+            if (strcmp(ifa->ifa_name, "lo") != 0) {
+                inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+                printf("Interface %s: IP Address %s\n", ifa->ifa_name, ip);
+            }
+        }
+    }
+
+    freeifaddrs(ifap);
+}
+
 int main() {
+
+get_local_ip();
+
+const char *json_data = "{\"response\": ["
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.1.1\", \"value\": \"Ethernet0\", \"type\": \"STRING\", \"description\": \"ifIndex\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.2.1\", \"value\": \"Ethernet Interface\", \"type\": \"STRING\", \"description\": \"ifDescr\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.7.1\", \"value\": \"2\", \"type\": \"INTEGER\", \"description\": \"ifAdminStatus\"},"
+        "{\"oid\": \"1.3.6.1.2.1.2.2.1.8.1\", \"value\": \"1\", \"type\": \"INTEGER\", \"description\": \"ifOperStatus\"}"
+        "]}";
+
     int sockfd;
     struct sockaddr_in server_addr, client_addr;
     char buffer[BUFFER_SIZE];

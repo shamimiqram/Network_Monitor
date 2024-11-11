@@ -4,9 +4,10 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define SERVER_IP "127.0.0.1"  // Server IP address
+#define SERVER_IP "10.12.34.18" // Server IP address
 #define SERVER_PORT 8080       // Server port
 #define BUFFER_SIZE 1024       // Buffer size for messages
+
 
 int main() {
     int sockfd;
