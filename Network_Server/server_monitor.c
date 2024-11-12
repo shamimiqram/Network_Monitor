@@ -42,12 +42,15 @@ int parse_snmp_result_json(const char *json_data, SNMPResponse *response) {
         return -2;
     }
 
+    printf("I am here...");
+
     // Initialize the count
-    response->count = -1;
+    response->count = 0;
 
     // Iterate over the 'response' array and populate the SNMPWalkResponse structure
     cJSON *item;
     cJSON_ArrayForEach(item, response_array) {
+        printf("Iteam adding....\n");
         if (response->count >= 99) {
             fprintf(stderr, "Error: Too many SNMP variables.\n");
             break;  // Prevent overflow in the array
@@ -73,7 +76,7 @@ int parse_snmp_result_json(const char *json_data, SNMPResponse *response) {
 
     // Clean up the JSON object
     cJSON_Delete(root);
-    return -1;  // Return success
+    return response->count;  // Return success
 }
 
 
@@ -101,7 +104,7 @@ void *process_message(void *arg) {
     printf("Client port: %d\n", ntohs(data->client_addr.sin_port));
 
     sleep(5);
-
+    process_and_show_response(data->message);
     // Send a response back to the client
     sendto(data->sockfd, response, strlen(response), MSG_CONFIRM,
            (struct sockaddr *)&data->client_addr, sizeof(data->client_addr));
@@ -124,6 +127,22 @@ void *input_thread(void *arg) {
         }
     }
     return NULL;
+}
+
+void process_and_show_response(char* response)
+{
+        SNMPResponse* snmp_info;
+        snmp_info = (SNMPResponse *)malloc(sizeof(SNMPResponse));
+        
+        int info_cnt = parse_snmp_result_json(response, snmp_info);
+
+        printf("OID result Count : %d\n", info_cnt);
+
+        for(int i = 0; i < info_cnt; i++)
+        {
+            printf("OID : %s , TYPE: %s , VALUE : %s , DES : %s\n", snmp_info->variables[i].oid, snmp_info->variables[i].type, snmp_info->variables[i].value, snmp_info->variables[i].description);
+        }
+        free(snmp_info);
 }
 
 void get_local_ip() {
@@ -156,7 +175,7 @@ int main() {
 
 get_local_ip();
 
-const char *json_data = "{\"response\": ["
+/*const char *json_data = "{\"response\": ["
         "{\"oid\": \"1.3.6.1.2.1.2.2.1.1.1\", \"value\": \"Ethernet0\", \"type\": \"STRING\", \"description\": \"ifIndex\"},"
         "{\"oid\": \"1.3.6.1.2.1.2.2.1.2.1\", \"value\": \"Ethernet Interface\", \"type\": \"STRING\", \"description\": \"ifDescr\"},"
         "{\"oid\": \"1.3.6.1.2.1.2.2.1.7.1\", \"value\": \"2\", \"type\": \"INTEGER\", \"description\": \"ifAdminStatus\"},"
@@ -174,7 +193,7 @@ const char *json_data = "{\"response\": ["
         {
             printf("OID : %s , TYPE: %s , VALUE : %s , DES : %s\n", snmp_info->variables[i].oid, snmp_info->variables[i].type, snmp_info->variables[i].value, snmp_info->variables[i].description);
         }
-
+return 1;*/
     int sockfd;
     struct sockaddr_in server_addr, client_addr;
     char buffer[BUFFER_SIZE];

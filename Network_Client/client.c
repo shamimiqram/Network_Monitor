@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define SERVER_IP "10.12.34.18" // Server IP address
+#define SERVER_IP "10.12.53.172" // Server IP address
 #define SERVER_PORT 8080       // Server port
 #define BUFFER_SIZE 1024       // Buffer size for messages
 
@@ -41,7 +41,7 @@ int main() {
 
 
     const char *message = "Hello from UDP Client!";
-    for(int j = 0; j < 10; j++)
+    for(int j = 0; j < 2; j++)
     {
         sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
            (const struct sockaddr *)&server_addr, sizeof(server_addr));
