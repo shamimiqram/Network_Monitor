@@ -1,0 +1,7 @@
+| InstrumentID | InstrumentType | MakerName    | YearMade |
++--------------+----------------+--------------+----------+
+| I001         | Guitar         | Fender       |     2020 |
+| I002         | Piano          | Yamaha       |     2018 |
+| I003         | Violin         | Stradivarius |     1700 |
+| I004         | Trumpet        | Bach         |     2015 |
++--------------+----------------+--------------+----------+
